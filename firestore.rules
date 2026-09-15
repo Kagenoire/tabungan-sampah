@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null;
+    }
+
+    // Nasabah data is private. Public "cek tabungan" goes through the
+    // /api/cek-tabungan server route (Firebase Admin SDK), which bypasses
+    // these rules entirely, so warga never read this collection directly.
+    match /nasabah/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // Harga sampah is shown on the public landing page.
+    match /jenisSampah/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /riwayatHarga/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /setoran/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /pencairan/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /supplier/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /hargaPengepul/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /penjualan/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /detailPenjualan/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /danaKeluar/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /korlap/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /pengambilan/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // Profil program & pengumuman ditampilkan di landing page publik.
+    match /pengaturan/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Append-only: admin boleh baca & tambah entri, tapi tidak boleh
+    // update/delete siapa pun (termasuk admin lain) supaya jejaknya tidak
+    // bisa dihapus/diubah setelah tercatat.
+    match /auditLog/{id} {
+      allow read, create: if isAdmin();
+    }
+  }
+}
