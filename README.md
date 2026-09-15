@@ -53,19 +53,75 @@ Project asli **`tabungan-sampah-app`** (Google Cloud project di akun `fs07ytsang
 
 Firebase Console: https://console.firebase.google.com/project/tabungan-sampah-app/overview
 
-Kalau suatu saat mau pindah ke project Firebase lain (misalnya project terpisah untuk lingkungan produksi vs testing), ulangi langkah-langkah ini:
-1. Buat project baru di [Firebase Console](https://console.firebase.google.com/), atau lewat CLI: `npx firebase-tools projects:create <project-id>`.
-2. Aktifkan **Firestore Database** (mode production, pilih region terdekat).
-3. Aktifkan **Authentication → Sign-in method → Email/Password**. **Langkah ini cuma bisa lewat Firebase Console, tidak ada API publik untuk mengaktifkannya pertama kali** - begitu sudah aktif sekali, perubahan config lain baru bisa lewat API.
-4. Di **Project Settings → General → Your apps**, tambah Web App, salin config-nya ke `.env.local` (lihat `.env.example`), set `NEXT_PUBLIC_USE_FIREBASE_EMULATOR=false` dan `USE_FIREBASE_EMULATOR=false`.
-5. Di **Project Settings → Service Accounts**, klik **Generate new private key**, lalu tempel seluruh isi JSON-nya (jadi satu baris) ke `FIREBASE_SERVICE_ACCOUNT` di `.env.local` / Vercel env vars.
-6. Deploy security rules & index:
+Kalau kamu fork repo ini, **jangan pakai project Firebase di atas** - bikin project Firebase sendiri, gratis dan datanya jadi punya kamu sendiri sepenuhnya. Caranya ada lengkap di bagian "Deploy sendiri" di bawah.
+
+## Deploy sendiri (fork, dan publish ke domain sendiri)
+
+Tutorial lengkap dari nol sampai website bisa diakses publik lewat domain sendiri. Gak perlu jago coding, ikutin urut dari atas.
+
+### 1. Fork & clone repo
+
+1. Buka repo ini di GitHub, klik tombol **Fork** di kanan atas (bikin salinan repo ini di akun GitHub kamu sendiri).
+2. Di komputer, clone hasil fork-nya:
+   ```
+   git clone https://github.com/<username-github-kamu>/tabungan-sampah.git
+   cd tabungan-sampah
+   ```
+3. Install [Node.js](https://nodejs.org/) versi 20 ke atas kalau belum ada, lalu install dependency project:
+   ```
+   npm install
+   ```
+
+### 2. Bikin project Firebase sendiri (gratis)
+
+Website ini butuh Firebase buat nyimpen data (nasabah, setoran, dll) dan login admin. Jangan pakai project Firebase punya orang lain - bikin punya sendiri, gratis dan cuma butuh akun Google.
+
+1. Buka [Firebase Console](https://console.firebase.google.com/), klik **Add project**, kasih nama bebas (misal `tabungan-sampah-rw-kamu`), lanjut sampai selesai (Google Analytics boleh dimatikan, gak wajib).
+2. Di menu kiri, klik **Build → Firestore Database → Create database**. Pilih **Production mode**, pilih lokasi server terdekat (misal `asia-southeast2` buat Indonesia), klik **Enable**.
+3. Di menu kiri, klik **Build → Authentication → Get started**. Klik provider **Email/Password**, nyalakan toggle **Enable**, klik **Save**.
+4. Klik ikon gerigi di pojok kiri atas → **Project settings**. Di tab **General**, scroll ke bawah ke bagian **Your apps**, klik ikon web (`</>`), kasih nama app bebas, klik **Register app**. Akan muncul kode config `firebaseConfig` - simpan dulu, dipakai di langkah berikutnya.
+5. Masih di **Project settings**, buka tab **Service accounts**, klik **Generate new private key**, klik **Generate key** - akan kedownload 1 file `.json`. Simpan file ini baik-baik, **jangan pernah diupload/dishare ke mana pun** (ini kunci penuh ke database kamu).
+6. Balik ke folder project di komputer, copy `.env.example` jadi `.env.local`:
+   ```
+   cp .env.example .env.local
+   ```
+   Buka `.env.local`, isi `NEXT_PUBLIC_FIREBASE_*` sesuai `firebaseConfig` dari langkah 4, set `NEXT_PUBLIC_USE_FIREBASE_EMULATOR=false` dan `USE_FIREBASE_EMULATOR=false`. Untuk `FIREBASE_SERVICE_ACCOUNT`, buka file `.json` yang kedownload di langkah 5, copy **seluruh isinya jadi satu baris** (hapus semua enter/baris baru), tempel sebagai nilai variabel itu.
+7. Login Firebase CLI dan deploy security rules + index (aturan siapa boleh akses data apa):
    ```
    npx firebase-tools login
-   npx firebase-tools use --add   # pilih project yang baru dibuat
+   npx firebase-tools use --add
+   ```
+   (pilih project Firebase yang baru dibuat tadi)
+   ```
    npx firebase-tools deploy --only firestore:rules,firestore:indexes
    ```
-7. Tambahkan minimal 1 dokumen di koleksi `jenisSampah` lewat halaman **Jenis & Harga Sampah** di admin, dan buat akun admin pertama lewat Firebase Console → Authentication → Users (email `admin@tabungansampah.local`, atau username lain + otomatis `@tabungansampah.local`).
+8. Bikin akun admin pertama: di Firebase Console, buka **Authentication → Users → Add user**. Isi email (contoh: `admin@tabungansampah.local` - **harus pakai domain `@tabungansampah.local`**, bukan email asli, karena form login web ini pakai "Username" bukan email) dan password bebas minimal 6 karakter. Nanti login di web pakai Username `admin` (tanpa `@tabungansampah.local`, otomatis ditambahin sistem).
+9. Coba jalanin lokal dulu buat mastiin semua beres:
+   ```
+   npm run dev
+   ```
+   Buka `http://localhost:3000`, coba login pakai akun admin yang baru dibuat. Kalau berhasil, lanjut ke deploy.
+10. Tambahin minimal 1 jenis sampah lewat menu **Jenis & Harga Sampah** di admin, biar form Input Setoran ada isinya.
+
+### 3. Deploy ke internet lewat Vercel (gratis)
+
+1. Push perubahan `.env.local` **JANGAN** di-push ke GitHub (sudah otomatis di-skip lewat `.gitignore`, tapi cek lagi biar aman).
+2. Daftar/login ke [Vercel](https://vercel.com) pakai akun GitHub kamu.
+3. Klik **Add New → Project**, pilih repo `tabungan-sampah` hasil fork tadi, klik **Import**.
+4. Sebelum klik Deploy, buka bagian **Environment Variables**, tambahkan satu-satu semua variabel yang ada di `.env.local` (copy nama dan isinya persis sama, termasuk `FIREBASE_SERVICE_ACCOUNT` yang panjang itu).
+5. Klik **Deploy**, tunggu sampai selesai (biasanya 1-2 menit). Vercel akan kasih link otomatis seperti `tabungan-sampah-xxxx.vercel.app` - website sudah live dan bisa diakses siapa saja lewat link itu.
+
+### 4. Pasang domain sendiri
+
+Kalau sudah punya domain sendiri (beli dari Niagahoster, Domainesia, Namecheap, dll):
+
+1. Di dashboard project Vercel, buka tab **Settings → Domains**.
+2. Ketik nama domain kamu (misal `tabungansampah-rw06.com` atau subdomain seperti `sampah.karangtaruna.org`), klik **Add**.
+3. Vercel akan kasih instruksi record DNS yang perlu ditambahkan (biasanya berupa `A` record atau `CNAME`) - catat nilainya.
+4. Login ke panel domain kamu (tempat beli domainnya), cari menu **DNS/Nameserver Management**, tambahkan record sesuai instruksi Vercel di langkah 3.
+5. Tunggu 10 menit - 24 jam (proses propagasi DNS), lalu domain kamu otomatis mengarah ke website ini dengan HTTPS aktif otomatis (gratis, dikelola Vercel).
+
+Kalau ada kendala di salah satu langkah, screenshot error-nya dan tanyakan ke siapa pun yang paham coding di kelompok - kemungkinan besar cuma salah copy-paste config Firebase atau env var yang kurang satu.
 
 ## Menjalankan secara lokal
 
@@ -82,14 +138,7 @@ Secara default `.env.local` di-set ke mode **Firebase Emulator** (`NEXT_PUBLIC_U
 npx firebase-tools emulators:start --only firestore,auth
 ```
 
-Emulator Firestore butuh **Java 21+**. Mesin ini cuma punya Java 8 sebagai default sistem, jadi dipasang Java 21 portable (tanpa install, tanpa butuh izin admin) di `C:\Users\FS07Y\AppData\Local\java-portable\jdk-21.0.12.1+1-jre`. Sebelum menjalankan perintah emulator di atas, set dulu:
-
-```
-export JAVA_HOME="/c/Users/FS07Y/AppData/Local/java-portable/jdk-21.0.12.1+1-jre"
-export PATH="$JAVA_HOME/bin:$PATH"
-```
-
-(Kalau pakai PowerShell: `$env:JAVA_HOME = "C:\Users\FS07Y\AppData\Local\java-portable\jdk-21.0.12.1+1-jre"; $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"`)
+Emulator Firestore butuh **Java 21+** terpasang di komputer kamu (cek versi: `java -version`). Kalau belum ada / versinya di bawah 21, download dari [Adoptium](https://adoptium.org/) (pilih versi 21, paket JRE cukup) lalu install seperti biasa.
 
 Data di emulator **tidak permanen** - hilang tiap emulator dimatikan, kecuali diexport (`emulators:export`) lalu di-import lagi. Sudah ada 1 akun admin dan 4 jenis sampah contoh (Botol Plastik, Kardus, Kertas, Besi) yang diseed manual untuk sesi pertama - lihat bagian "Login" di bawah.
 
@@ -100,7 +149,3 @@ Kalau lebih gampang, langsung sambungkan ke project Firebase asli (set `NEXT_PUB
 Akun admin pertama di project asli: username `admin` (password sudah dikirim terpisah, ganti sendiri lewat menu **Akun Admin → Profil Saya** setelah login pertama kali). Untuk tambah admin lain (pengurus Karang Taruna lainnya), login lalu buka menu **Lainnya → Akun Admin → Tambah Admin**.
 
 Kalau lagi jalan pakai emulator lokal (`NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true`), akun contoh yang dipakai untuk testing: username `admin`, password `admin123` - bukan akun produksi, data hilang tiap emulator dimatikan.
-
-## Deploy
-
-Cara termudah: [Vercel](https://vercel.com) (`vercel deploy`), lalu set semua env var dari `.env.local`/`.env.example` di Vercel Project Settings → Environment Variables (termasuk `FIREBASE_SERVICE_ACCOUNT`).
